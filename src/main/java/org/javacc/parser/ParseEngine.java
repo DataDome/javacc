@@ -1022,14 +1022,20 @@ public class ParseEngine {
     }
 
     if (isJavaDialect) {
-      codeGenerator.genCodeLine("    try { return (!jj_3" + e.internal_name + "()" + ret_suffix + "); }");
-      codeGenerator.genCodeLine("    catch(LookaheadSuccess ls) { return true; }");
+      codeGenerator.genCodeLine("    " + Options.getLongType() + " r = jj_3" + e.internal_name + "();");
+      codeGenerator.genCodeLine("    if (r != 1" + ret_suffix + ") {");
+      if (Options.getErrorReporting()) {
+        codeGenerator.genCodeLine("      if (r == 0) { jj_save(" + (Integer.parseInt(e.internal_name.substring(1))-1) + ", xla); }");
+      }
+      codeGenerator.genCodeLine("      return true;");
+      codeGenerator.genCodeLine("    }");
+      codeGenerator.genCodeLine("    return false;");
     } else {
       codeGenerator.genCodeLine("    jj_done = false;");
       codeGenerator.genCodeLine("    return (!jj_3" + e.internal_name + "() || jj_done)" + ret_suffix + ";");
-    }
-    if (Options.getErrorReporting()) {
-      codeGenerator.genCodeLine((isJavaDialect ? "    finally " : " ") + "{ jj_save(" + (Integer.parseInt(e.internal_name.substring(1))-1) + ", xla); }");
+      if (Options.getErrorReporting()) {
+        codeGenerator.genCodeLine(" { jj_save(" + (Integer.parseInt(e.internal_name.substring(1))-1) + ", xla); }");
+      }
     }
     codeGenerator.genCodeLine("  }");
     codeGenerator.genCodeLine("");
@@ -1175,7 +1181,7 @@ public class ParseEngine {
 
     if (!recursive_call) {
       if (isJavaDialect) {
-        codeGenerator.genCodeLine("  " + staticOpt() + "private " + Options.getBooleanType() + " jj_3" + e.internal_name + "()");
+        codeGenerator.genCodeLine("  " + staticOpt() + "private " + Options.getLongType() + " jj_3" + e.internal_name + "()");
       } else {
         codeGenerator.genCodeLine(" inline bool ", "jj_3" + e.internal_name + "()");
       }
@@ -1186,6 +1192,8 @@ public class ParseEngine {
         if (Options.getDepthLimit() > 0) {
           codeGenerator.genCodeLine("#define __ERROR_RET__ true");
         }
+      } else {
+        codeGenerator.genCodeLine("    " + Options.getLongType() + " r = 0;");
       }
       genStackCheck(false);
       xsp_declared = false;
@@ -1205,13 +1213,14 @@ public class ParseEngine {
       if (e_nrw.label.equals("")) {
         Object label = names_of_tokens.get(Integer.valueOf(e_nrw.ordinal));
         if (label != null) {
-          codeGenerator.genCodeLine("    if (jj_scan_token(" + (String)label + ")) " + genReturn(true));
+          codeGenerator.genCodeLine("    r = jj_scan_token(" + (String)label + ");");
         } else {
-          codeGenerator.genCodeLine("    if (jj_scan_token(" + e_nrw.ordinal + ")) " + genReturn(true));
+          codeGenerator.genCodeLine("    r = jj_scan_token(" + e_nrw.ordinal + ");");
         }
       } else {
-        codeGenerator.genCodeLine("    if (jj_scan_token(" + e_nrw.label + ")) " + genReturn(true));
+        codeGenerator.genCodeLine("    r = jj_scan_token(" + e_nrw.label + ");");
       }
+      codeGenerator.genCodeLine("    if (r != 0) return r;");
       //codeGenerator.genCodeLine("    if (jj_la == 0 && jj_scanpos == jj_lastpos) " + genReturn(false));
     } else if (e instanceof NonTerminal) {
       // All expansions of non-terminals have the "name" fields set.  So
@@ -1221,11 +1230,12 @@ public class ParseEngine {
       NonTerminal e_nrw = (NonTerminal)e;
       NormalProduction ntprod = (NormalProduction)(production_table.get(e_nrw.getName()));
       if (ntprod instanceof CodeProduction) {
-        codeGenerator.genCodeLine("    if (true) { jj_la = 0; jj_scanpos = jj_lastpos; " + genReturn(false) + "}");
+        codeGenerator.genCodeLine("    if (true) { jj_la = 0; jj_scanpos = jj_lastpos; return 0; }");
       } else {
         Expansion ntexp = ntprod.getExpansion();
         //codeGenerator.genCodeLine("    if (jj_3" + ntexp.internal_name + "()) " + genReturn(true));
-        codeGenerator.genCodeLine("    if (" + genjj_3Call(ntexp)+ ") " + genReturn(true));
+        codeGenerator.genCodeLine("    r = " + genjj_3Call(ntexp)+ ";");
+        codeGenerator.genCodeLine("    if (r != 0) return r;");
         //codeGenerator.genCodeLine("    if (jj_la == 0 && jj_scanpos == jj_lastpos) " + genReturn(false));
       }
     } else if (e instanceof Choice) {
@@ -1255,17 +1265,20 @@ public class ParseEngine {
           codeGenerator.genCodeLine(";");
           codeGenerator.genCodeLine("    jj_lookingAhead = false;");
         }
+        codeGenerator.genCodeLine("    r = " + genjj_3Call(nested_seq) + ";");
+        codeGenerator.genCodeLine("    if (r == 2) return 2;");
         codeGenerator.genCode("    if (");
         if (la.getActionTokens().size() != 0) {
           codeGenerator.genCode("!jj_semLA || ");
         }
+        codeGenerator.genCode("r == 1)");
         if (i != e_nrw.getChoices().size() - 1) {
           //codeGenerator.genCodeLine("jj_3" + nested_seq.internal_name + "()) {");
-          codeGenerator.genCodeLine(genjj_3Call(nested_seq) + ") {");
+          codeGenerator.genCodeLine(" {");
           codeGenerator.genCodeLine("    jj_scanpos = xsp;");
         } else {
           //codeGenerator.genCodeLine("jj_3" + nested_seq.internal_name + "()) " + genReturn(true));
-          codeGenerator.genCodeLine(genjj_3Call(nested_seq) + ") " + genReturn(true));
+          codeGenerator.genCodeLine(" return 1;");
           //codeGenerator.genCodeLine("    if (jj_la == 0 && jj_scanpos == jj_lastpos) " + genReturn(false));
         }
       }
@@ -1299,12 +1312,15 @@ public class ParseEngine {
       OneOrMore e_nrw = (OneOrMore)e;
       Expansion nested_e = e_nrw.expansion;
       //codeGenerator.genCodeLine("    if (jj_3" + nested_e.internal_name + "()) " + genReturn(true));
-      codeGenerator.genCodeLine("    if (" + genjj_3Call(nested_e) + ") " + genReturn(true));
+      codeGenerator.genCodeLine("    r = " + genjj_3Call(nested_e)+ ";");
+      codeGenerator.genCodeLine("    if (r != 0) return r;");
       //codeGenerator.genCodeLine("    if (jj_la == 0 && jj_scanpos == jj_lastpos) " + genReturn(false));
       codeGenerator.genCodeLine("    while (true) {");
       codeGenerator.genCodeLine("      xsp = jj_scanpos;");
       //codeGenerator.genCodeLine("      if (jj_3" + nested_e.internal_name + "()) { jj_scanpos = xsp; break; }");
-      codeGenerator.genCodeLine("      if (" + genjj_3Call(nested_e) + ") { jj_scanpos = xsp; break; }");
+      codeGenerator.genCodeLine("    r = " + genjj_3Call(nested_e)+ ";");
+      codeGenerator.genCodeLine("    if (r == 2) return 2;");
+      codeGenerator.genCodeLine("    if (r == 1) { jj_scanpos = xsp; break; };");
       //codeGenerator.genCodeLine("      if (jj_la == 0 && jj_scanpos == jj_lastpos) " + genReturn(false));
       codeGenerator.genCodeLine("    }");
     } else if (e instanceof ZeroOrMore) {
@@ -1317,7 +1333,9 @@ public class ParseEngine {
       codeGenerator.genCodeLine("    while (true) {");
       codeGenerator.genCodeLine("      xsp = jj_scanpos;");
       //codeGenerator.genCodeLine("      if (jj_3" + nested_e.internal_name + "()) { jj_scanpos = xsp; break; }");
-      codeGenerator.genCodeLine("      if (" + genjj_3Call(nested_e) + ") { jj_scanpos = xsp; break; }");
+      codeGenerator.genCodeLine("    r = " + genjj_3Call(nested_e)+ ";");
+      codeGenerator.genCodeLine("    if (r == 2) return 2;");
+      codeGenerator.genCodeLine("    if (r == 1) { jj_scanpos = xsp; break; };");
       //codeGenerator.genCodeLine("      if (jj_la == 0 && jj_scanpos == jj_lastpos) " + genReturn(false));
       codeGenerator.genCodeLine("    }");
     } else if (e instanceof ZeroOrOne) {
@@ -1329,11 +1347,13 @@ public class ParseEngine {
       Expansion nested_e = e_nrw.expansion;
       codeGenerator.genCodeLine("    xsp = jj_scanpos;");
       //codeGenerator.genCodeLine("    if (jj_3" + nested_e.internal_name + "()) jj_scanpos = xsp;");
-      codeGenerator.genCodeLine("    if (" + genjj_3Call(nested_e) + ") jj_scanpos = xsp;");
+      codeGenerator.genCodeLine("    r = " + genjj_3Call(nested_e)+ ";");
+      codeGenerator.genCodeLine("    if (r == 2) return 2;");
+      codeGenerator.genCodeLine("    if (r == 1) { jj_scanpos = xsp; break; };");
       //codeGenerator.genCodeLine("    else if (jj_la == 0 && jj_scanpos == jj_lastpos) " + genReturn(false));
     }
     if (!recursive_call) {
-      codeGenerator.genCodeLine("    " + genReturn(false));
+      codeGenerator.genCodeLine("    return r;");
       genStackCheckEnd();
       if (!isJavaDialect && Options.getDepthLimit() > 0) {
         codeGenerator.genCodeLine("#undef __ERROR_RET__");
