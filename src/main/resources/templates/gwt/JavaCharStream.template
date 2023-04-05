@@ -146,46 +146,71 @@ class JavaCharStream
     tokenBegin = 0;
   }
 
-  ${PREFIX}protected void FillBuff() throws java.io.IOException
+  ${PREFIX}protected boolean FillBuff() throws java.io.IOException
   {
+    if (inputStream == null)
+    {
+      if (tokenBegin == -1)
+        tokenBegin = bufpos;
+      return false;
+    }
     int i;
     if (maxNextCharInd == 4096)
       maxNextCharInd = nextCharInd = 0;
 
+    boolean res = false;
     try {
       if ((i = inputStream.read(nextCharBuf, maxNextCharInd,
                                           4096 - maxNextCharInd)) == -1)
       {
         inputStream.close();
-        throw new java.io.IOException();
+        inputStream = null;
       }
       else
+      {
          maxNextCharInd += i;
-      return;
-    }
-    catch(java.io.IOException e) {
-      if (bufpos != 0)
-      {
-        --bufpos;
-        backup(0);
+         res = true;
       }
+      return res;
+    } finally {
+      if (res == false) {
+        if (bufpos != 0)
+        {
+          --bufpos;
+          backup(0);
+        }
 #if KEEP_LINE_COLUMN
-      else
-      {
-        bufline[bufpos] = line;
-        bufcolumn[bufpos] = column;
-      }
+        else
+        {
+          bufline[bufpos] = line;
+          bufcolumn[bufpos] = column;
+        }
 #fi
-      throw e;
+      }
     }
   }
 
-  ${PREFIX}protected char ReadByte() throws java.io.IOException
+  ${PREFIX}public boolean hasNextChar() throws java.io.IOException
   {
     if (++nextCharInd >= maxNextCharInd)
-      FillBuff();
+      return FillBuff();
 
+    return true;
+  }
+
+  ${PREFIX}protected char ReadByte()
+  {
     return nextCharBuf[nextCharInd];
+  }
+
+  ${PREFIX}public boolean hasNextToken() throws java.io.IOException
+  {
+    if (inBuf > 0)
+      return true;
+
+    tokenBegin = 0;
+    bufpos = -1;
+    return hasNextChar();
   }
 
 /** @return starting character for token. */
@@ -201,9 +226,6 @@ class JavaCharStream
       tokenBegin = bufpos;
       return buffer[bufpos];
     }
-
-    tokenBegin = 0;
-    bufpos = -1;
 
     return readChar();
   }

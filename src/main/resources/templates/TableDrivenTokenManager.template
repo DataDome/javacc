@@ -2,6 +2,8 @@ public class ${parserName}TokenManager ${superClass} implements ${parserName}Con
 
 protected ${STATIC?static :}boolean moveToNextChar() {
   try {
+    if (!input_stream.hasNextChar())
+      throw new java.io.IOException();
     curChar = input_stream.readChar();
 #if IGNORE_CASE
     curChar = (int)Character.toLowerCase((char)curChar);
@@ -369,12 +371,20 @@ public ${STATIC?static :} Token getNextToken() {
   EOFLoop:
   for (;;) {
     // First see if we have any input at all.
+    boolean hasNextToken = false;
     try {
-      curChar = input_stream.BeginToken();
+      hasNextToken = input_stream.hasNextToken();
+      if (hasNextToken)
+      {
+        curChar = input_stream.BeginToken();
 #if IGNORE_CASE
-      curChar = Character.toLowerCase(curChar);
+        curChar = Character.toLowerCase(curChar);
 #fi
+      }
     } catch(Exception e) {
+      hasNextToken = false;
+    }
+    if (!hasNextToken) {
 #if DEBUG_TOKEN_MANAGER
     if (lexStateNames.length > 1) {
       System.err.print("<" + lexStateNames[curLexState] + "> ");
@@ -432,7 +442,7 @@ public ${STATIC?static :} Token getNextToken() {
 
       if (jjmatchedKind != Integer.MAX_VALUE) {
         // We have a match!
-  
+
         // Put back any characters looked ahead.
         input_stream.backup(lastReadPosition - jjmatchedPos);
         if (isToken(jjmatchedKind)) {
@@ -483,6 +493,8 @@ public ${STATIC?static :} Token getNextToken() {
         lastReadPosition = 0;
         jjmatchedKind = 0x7fffffff;
         try {
+          if (!input_stream.hasNextChar())
+            throw new java.io.IOException();
           curChar = input_stream.readChar();
           continue;
         }
@@ -499,6 +511,8 @@ protected ${STATIC?static :} void reportError(int lastReadPosition) {
   String error_after = null;
   boolean EOFSeen = false;
   try {
+    if (!input_stream.hasNextChar())
+      throw new java.io.IOException();
     input_stream.readChar();
     input_stream.backup(1);
   } catch (java.io.IOException e1) {

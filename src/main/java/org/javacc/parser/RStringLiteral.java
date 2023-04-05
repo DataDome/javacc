@@ -587,7 +587,11 @@ public class RStringLiteral extends RegularExpression {
 
      // TODO :: CBA --  Require Unification of output language specific processing into a single Enum class
      if (Options.isOutputLanguageJava()) {
-       codeGenerator.genCodeLine("   try { curChar = input_stream.readChar(); }");
+       codeGenerator.genCodeLine("   try {");
+       codeGenerator.genCodeLine("     if (!input_stream.hasNextChar())");
+       codeGenerator.genCodeLine("       throw new java.io.IOException();");
+       codeGenerator.genCodeLine("     curChar = input_stream.readChar();");
+       codeGenerator.genCodeLine("   }");
        codeGenerator.genCodeLine("   catch(java.io.IOException e) { return pos + 1; }");
      } else if (Options.getOutputLanguage().equals(Options.OUTPUT_LANGUAGE__CPP)){
        codeGenerator.genCodeLine("   if (input_stream->endOfInput()) { return pos + 1; }");
@@ -865,7 +869,11 @@ public class RStringLiteral extends RegularExpression {
 
            // TODO :: CBA --  Require Unification of output language specific processing into a single Enum class
            if (Options.isOutputLanguageJava()) {
-             codeGenerator.genCodeLine("   try { curChar = input_stream.readChar(); }");
+             codeGenerator.genCodeLine("   try {");
+             codeGenerator.genCodeLine("     if (!input_stream.hasNextChar())");
+             codeGenerator.genCodeLine("       throw new java.io.IOException();");
+             codeGenerator.genCodeLine("     curChar = input_stream.readChar();");
+             codeGenerator.genCodeLine("   }");
              codeGenerator.genCodeLine("   catch(java.io.IOException e) {");
            } else if (Options.getOutputLanguage().equals(Options.OUTPUT_LANGUAGE__CPP)) {
              codeGenerator.genCodeLine("   if (input_stream->endOfInput()) {");

@@ -944,11 +944,15 @@ public class LexGen extends CodeGenerator implements JavaCCParserConstants
     genCodeLine("");
     genCodeLine("  EOFLoop :\n  for (;;)");
     genCodeLine("  {");
+    genCodeLine("   boolean hasNextToken = false;");
     genCodeLine("   try");
     genCodeLine("   {");
-    genCodeLine("      curChar = input_stream.BeginToken();");
+    genCodeLine("      hasNextToken = input_stream.hasNextToken();");
+    genCodeLine("      if (hasNextToken)");
+    genCodeLine("        curChar = input_stream.BeginToken();");
     genCodeLine("   }");
-    genCodeLine("   catch(Exception e)");
+    genCodeLine("   catch(Exception e) { hasNextToken = false; }");
+    genCodeLine("   if (!hasNextToken)");
     genCodeLine("   {");
 
     if (Options.getDebugTokenManager())
@@ -1045,6 +1049,8 @@ public class LexGen extends CodeGenerator implements JavaCCParserConstants
                   "\"Skipping character : \" + " +
           errorHandlingClass+".addEscapes(String.valueOf(curChar)) + \" (\" + (int)curChar + \")\");");
         }
+        genCodeLine(prefix + "      if (!input_stream.hasNextToken())");
+        genCodeLine(prefix + "        continue EOFLoop;");
         genCodeLine(prefix + "      curChar = input_stream.BeginToken();");
 
         if (Options.getDebugTokenManager())
@@ -1244,6 +1250,8 @@ public class LexGen extends CodeGenerator implements JavaCCParserConstants
           genCodeLine(prefix + "      jjmatchedKind = 0x" + Integer.toHexString(Integer.MAX_VALUE) + ";");
 
           genCodeLine(prefix + "      try {");
+          genCodeLine(prefix + "         if (!input_stream.hasNextChar())");
+          genCodeLine(prefix + "           throw new java.io.IOException();");
           genCodeLine(prefix + "         curChar = input_stream.readChar();");
 
           if (Options.getDebugTokenManager())
@@ -1263,7 +1271,12 @@ public class LexGen extends CodeGenerator implements JavaCCParserConstants
       genCodeLine(prefix + "   int error_column = input_stream.getEndColumn();");
       genCodeLine(prefix + "   String error_after = null;");
       genCodeLine(prefix + "   " + Options.getBooleanType() + " EOFSeen = false;");
-      genCodeLine(prefix + "   try { input_stream.readChar(); input_stream.backup(1); }");
+      genCodeLine(prefix + "   try {");
+      genCodeLine(prefix + "     if (!input_stream.hasNextChar())");
+      genCodeLine(prefix + "       throw new java.io.IOException();");
+      genCodeLine(prefix + "     input_stream.readChar();");
+      genCodeLine(prefix + "     input_stream.backup(1);");
+      genCodeLine(prefix + "   }");
       genCodeLine(prefix + "   catch (java.io.IOException e1) {");
       genCodeLine(prefix + "      EOFSeen = true;");
       genCodeLine(prefix + "      error_after = curPos <= 1 ? \"\" : input_stream.GetImage();");
