@@ -1039,10 +1039,9 @@ public class LexGen extends CodeGenerator implements JavaCCParserConstants
               Long.toHexString(singlesToSkip[i].asciiMoves[1]) +
           "L & (1L << (curChar & 077))) != 0L)");
         }
-
+        genCodeLine(prefix + "{");
         if (Options.getDebugTokenManager())
-        {
-          genCodeLine(prefix + "{");
+        { 
           genCodeLine("      debugStream.println(" +
               (maxLexStates > 1 ?
                   "\"<\" + lexStateNames[curLexState] + \">\" + " : "") +
@@ -1053,8 +1052,7 @@ public class LexGen extends CodeGenerator implements JavaCCParserConstants
         genCodeLine(prefix + "        continue EOFLoop;");
         genCodeLine(prefix + "      curChar = input_stream.BeginToken();");
 
-        if (Options.getDebugTokenManager())
-          genCodeLine(prefix + "}");
+        genCodeLine(prefix + "}");
 
         genCodeLine(prefix + "}");
         genCodeLine(prefix + "catch (java.io.IOException e1) { continue EOFLoop; }");
